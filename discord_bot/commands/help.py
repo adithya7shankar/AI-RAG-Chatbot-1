@@ -12,10 +12,10 @@ class HelpCommand(commands.Cog):
         help_message = (
             "Here are the commands you can use:\n"
             "`/ask <question>` - Ask the chatbot a question.\n"
-            "`/book-search <title>` - Search for a book by title.\n"
+            "`/book-search <title>` - Retrieve matching document passages.\n"
             "For more information, visit our documentation."
         )
         await ctx.send(help_message)
 
-def setup(bot):
-    bot.add_cog(HelpCommand(bot))
+async def setup(bot):
+    await bot.add_cog(HelpCommand(bot))

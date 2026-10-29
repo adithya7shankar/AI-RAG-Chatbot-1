@@ -74,24 +74,55 @@ AI-RAG-Chatbot/
 - **Docker Compose**: Used for container orchestration
 - **Cloud Storage**: Use S3 for logs, files
 
-## 5. Optimizations & Performance Metrics
-### Backend Efficiency
-- Reduced query time by 25% using PostgreSQL indexing.
-- Asynchronous API handling to improve response time.
-- Dockerized deployment for scalability.
+## Evaluation status
 
-### AI Model Efficiency
-- 95% accurate document retrieval using FAISS vector search.
-- Optimized GPT API usage for cost-effective calls.
+This repository does not include a reproducible benchmark supporting its former
+latency, concurrency, retrieval-accuracy or database-speedup numbers. Those numbers
+have been removed. Offline regression tests establish specific behavior; they do
+not establish deployment capacity or answer quality.
 
-### Bot Performance
-- <200ms average response time on queries.
-- Handles 100+ concurrent users smoothly.
+### Discord command behavior
 
-## Next Steps
-- Fine-tune GPT model for improved Discord interactions.
-- Add user authentication for personalized history tracking.
-- Scale with AWS Lambda for better cost-efficiency.
+`/ask <question>` requests a document-backed answer from `POST /rag`.
+`/book-search <query>` retrieves matching passages from `POST /chat/book-search`
+without generating an answer. These are prefix commands, not registered Discord
+application slash commands. Enable Message Content Intent for the bot.
 
-## Final Thoughts
-This project ensures a scalable, efficient AI chatbot with LLM-driven conversations and RAG-based document retrieval while keeping backend queries fast and lightweight. 🚀
+Backend requests run outside the Discord event loop, with connection/read timeouts
+of 3/30 seconds. Long output is split for Discord, mentions are suppressed, and
+unavailable or malformed backend responses get a neutral error. Extensions load
+through Discord.py 2's asynchronous setup hook; the custom help command replaces
+the default one.
+
+From the repository root, run `python discord_bot/bot.py` with `DISCORD_TOKEN`
+and `BACKEND_API_URL` set. The bot's configuration and extensions are resolved
+relative to its files. Inside Compose, `BACKEND_API_URL` must point to the backend
+service, for example `http://backend:5000`, rather than the bot container itself.
+
+Run bot tests from the repository root:
+
+```sh
+python -m unittest discover -s discord_bot/tests -v
+```
+
+These tests load the real Discord command extensions and mock HTTP requests.
+They do not log in to Discord or contact an LLM provider.
+
+### Retrieval failure behavior
+
+`POST /rag` generates an answer only when retrieval returns source documents.
+An empty corpus, unavailable vector store, or retrieval failure returns HTTP 503
+with an error and `results: []`, without calling the generation service. Error
+messages and empty-corpus placeholders are not indexed as source evidence.
+A successful response keeps the existing `response` and `results` shape.
+This guard prevents generation without retrieved context; it does not establish
+that every retrieved passage is relevant or that the generated answer is correct.
+
+Run the offline regression checks from `backend/`:
+
+```sh
+python -m unittest test_routes test_retrieval_failures -v
+```
+
+These tests use fake service dependencies and never contact embedding or LLM
+providers. They do not validate the repository's legacy provider integrations.

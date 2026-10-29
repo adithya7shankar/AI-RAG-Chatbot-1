@@ -36,6 +36,9 @@ class LangChainService:
         try:
             self.embeddings = OpenAIEmbeddings(openai_api_key=self.api_key)
             self.vector_store = self.initialize_vector_store()
+            if self.vector_store is None:
+                self.qa_chain = None
+                return
             
             # Use OpenAI LLM instead of embeddings for text generation
             llm = OpenAI(openai_api_key=self.api_key)
@@ -74,14 +77,12 @@ class LangChainService:
                 vector_store = FAISS.from_texts(document_texts, self.embeddings)
                 return vector_store
             else:
-                # Create an empty vector store with a dummy document if no documents exist
-                vector_store = FAISS.from_texts(["No documents available"], self.embeddings)
-                return vector_store
+                # An empty corpus is not evidence for a generated answer.
+                return None
                 
         except Exception as e:
             self.log_error(f"Error initializing vector store: {e}")
-            # Return a minimal vector store with a dummy document
-            return FAISS.from_texts(["Error loading documents"], self.embeddings)
+            return None
 
     def get_response(self, query):
         """Get a response using the QA chain"""
@@ -108,10 +109,10 @@ class LangChainService:
                 docs = self.vector_store.similarity_search(query, k=5)
                 return [doc.page_content for doc in docs]
             else:
-                return ["Sorry, the document retrieval service is not available at this time."]
+                return []
         except Exception as e:
             self.log_error(f"Error retrieving documents: {e}")
-            return ["Sorry, I couldn't retrieve documents at this time."]
+            return []
     
     def log_error(self, message):
         """Log errors, handling both Flask and non-Flask contexts"""
