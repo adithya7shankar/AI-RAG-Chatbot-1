@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from routes.validation import required_text
 from services.gpt_service import GPTService
 from services.langchain_service import LangChainService
 
@@ -9,8 +10,7 @@ langchain_service = LangChainService()
 
 @chat_bp.route('', methods=['POST'])
 def chat():
-    data = request.json
-    user_message = data.get('message')
+    user_message = required_text('message')
 
     if not user_message:
         return jsonify({'error': 'Message is required'}), 400
@@ -22,8 +22,7 @@ def chat():
 
 @chat_bp.route('/book-search', methods=['POST'])
 def book_search():
-    data = request.json
-    query = data.get('query')
+    query = required_text('query')
 
     if not query:
         return jsonify({'error': 'Query is required'}), 400
